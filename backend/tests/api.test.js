@@ -168,4 +168,56 @@ describe('Nexus RESTful API Test Suite', () => {
     assert.equal(res.body.success, true);
     assert.ok(Array.isArray(res.body.data));
   });
+
+  // --- WEEK 5 DEBUGGING & PERFORMANCE BENCHMARK TESTS ---
+  test('17. Validation Guard: Reject Empty Post Content (POST /api/posts)', async () => {
+    const res = await request(app)
+      .post('/api/posts')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ content: '   ' });
+
+    assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
+    assert.match(res.body.message, /empty/i);
+  });
+
+  test('18. Validation Guard: Reject Empty Comment (POST /api/posts/:id/comments)', async () => {
+    const res = await request(app)
+      .post(`/api/posts/${createdPostId}/comments`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ text: '' });
+
+    assert.equal(res.status, 400);
+    assert.equal(res.body.success, false);
+    assert.match(res.body.message, /empty/i);
+  });
+
+  test('19. Security Guard: Reject Tampered / Malformed JWT Token', async () => {
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', 'Bearer invalid.tampered.token');
+
+    assert.equal(res.status, 401);
+    assert.equal(res.body.success, false);
+    assert.match(res.body.message, /invalid|expired/i);
+  });
+
+  test('20. Security Guard: Reject Unauthorized Post Deletion', async () => {
+    // Attempt deleting with invalid/mismatched author
+    const res = await request(app)
+      .delete(`/api/posts/${createdPostId}`)
+      .set('Authorization', 'Bearer invalid_token');
+
+    assert.equal(res.status, 401);
+  });
+
+  test('21. Performance Benchmark: API Response Latency Under 100ms', async () => {
+    const start = performance.now();
+    const res = await request(app).get('/api/posts');
+    const elapsed = performance.now() - start;
+
+    assert.equal(res.status, 200);
+    assert.ok(elapsed < 100, `Expected latency < 100ms, received ${elapsed.toFixed(2)}ms`);
+  });
 });
+
